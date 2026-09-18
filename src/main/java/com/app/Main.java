@@ -46,28 +46,34 @@ public class Main implements Callable<Integer> {
             return 1;
         }
 
-        Files.createDirectories(outputDir);
+        // Tiles go in a subfolder named after the source image, e.g.
+        // output/site-screenshot/tile-01.png, rather than loose in output/.
+        String inputFilename = inputImage.getFileName().toString();
+        int dotIndex = inputFilename.lastIndexOf('.');
+        String imageBaseName = dotIndex > 0 ? inputFilename.substring(0, dotIndex) : inputFilename;
+        Path tileDir = outputDir.resolve(imageBaseName);
+        Files.createDirectories(tileDir);
 
         List<TileSlicer.Tile> tiles = TileSlicer.slice(source, maxDim, overlap);
 
         StringBuilder manifest = new StringBuilder("[\n");
         for (int i = 0; i < tiles.size(); i++) {
             TileSlicer.Tile tile = tiles.get(i);
-            String filename = String.format("tile-%02d.png", i + 1);
-            ImageIO.write(tile.image(), "png", outputDir.resolve(filename).toFile());
+            String tileFilename = String.format("tile-%02d.png", i + 1);
+            ImageIO.write(tile.image(), "png", tileDir.resolve(tileFilename).toFile());
 
-            manifest.append("  { \"file\": \"").append(filename)
+            manifest.append("  { \"file\": \"").append(tileFilename)
                     .append("\", \"yOffset\": ").append(tile.yOffset())
                     .append(", \"height\": ").append(tile.height())
                     .append(" }")
                     .append(i < tiles.size() - 1 ? ",\n" : "\n");
 
-            System.out.println("Wrote " + filename + " (y=" + tile.yOffset() + ", h=" + tile.height() + ")");
+            System.out.println("Wrote " + tileFilename + " (y=" + tile.yOffset() + ", h=" + tile.height() + ")");
         }
         manifest.append("]\n");
 
-        Files.writeString(outputDir.resolve("manifest.json"), manifest.toString());
-        System.out.println(tiles.size() + " tile(s) written to " + outputDir.toAbsolutePath());
+        Files.writeString(tileDir.resolve("manifest.json"), manifest.toString());
+        System.out.println(tiles.size() + " tile(s) written to " + tileDir.toAbsolutePath());
 
         return 0;
     }
